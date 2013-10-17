@@ -58,5 +58,146 @@ public class GuessTheCountry extends Activity {
         setContentView(R.layout.main);
 
         fileNameList = new ArrayList<String>();
+        quizCountriesList = new ArrayList<String>();
+        regionsMap = new HashMap<String, Boolean>();
+        guessRows = 1; //default 1 string of answer buttons
+        random = new Random();
+        handler = new Handler();
+
+        shakeAnimation = AnimationUtils.loadAnimation(this,R.anim.incorrect_shake);
+        shakeAnimation.setRepeatCount(3);
+
+        String[] regionNames = getResources().getStringArray(R.array.regionsList);
+
+        for(String region : regionNames){
+            regionsMap.put(region, true);
+        }
+
+        questionNumberTextView = (TextView) findViewById(R.id.questionNumberTextView);
+        flagImageView = (ImageView) findViewById(R.id.flagImageView);
+        buttonTableLayout = (TableLayout) findViewById(R.id.buttonTableLayout);
+        answerTextView = (TextView) findViewById(R.id.answerTextView);
+
+        questionNumberTextView.setText(getResources().getString(R.string.question) + " 1 " +
+        getResources().getString(R.string.of) + " 10");
+
+        resetQuiz();
     }
+
+    private void resetQuiz(){
+
+        AssetManager assets = getAssets();
+
+        fileNameList.clear();
+
+        try{
+            Set<String> regions = regionsMap.keySet();
+
+            for(String region:regions){
+
+                if(regionsMap.get(region)){
+                    String[] paths = assets.list(region);
+
+                    for(String path : paths){
+                        fileNameList.add(path.replace(".png", ""));
+                    }
+                }
+            }
+        }
+        catch (IOException e){
+            Log.e(TAG, "Error loading images file names", e);
+        }
+
+        correctAnswers = 0;
+        totalGuesses = 0;
+
+        quizCountriesList.clear();
+
+        int flagCounter = 1;
+        int numberOfFlags = fileNameList.size();
+
+        while(flagCounter <=10){
+
+            int randomIndex = random.nextInt(numberOfFlags);
+
+            String fileName = fileNameList.get(randomIndex);
+
+            if(!quizCountriesList.contains(fileName)){
+                quizCountriesList.add(fileName);
+                ++flagCounter;
+            }
+        }
+        loadNextFlag();
+    }
+
+    private void loadNextFlag(){
+
+        String nextImageName = quizCountriesList.remove(0);
+        correctAnswer = nextImageName;
+        answerTextView.setText("");
+
+        questionNumberTextView.setText(
+                getResources().getString(R.string.question) + " " +
+                        (correctAnswer + 1) + " " +
+                getResources().getString(R.string.of) + " 10");
+
+        //imageName format region-country
+        String region = nextImageName.substring(0, nextImageName.indexOf('-'));
+
+        AssetManager assets = getAssets();
+        InputStream stream;
+
+        try{
+            stream = assets.open(region + "/" + nextImageName + ".png");
+
+            Drawable flag = Drawable.createFromStream(stream, nextImageName);
+            flagImageView.setImageDrawable(flag);
+        }
+        catch (IOException e){
+            Log.e(TAG, "Error loading " + nextImageName, e);
+        }
+        //clear prev answer buttons
+        for(int row = 0; row < buttonTableLayout.getChildCount(); ++row){
+            ((TableRow) buttonTableLayout.getChildAt(row)).removeAllViews();
+        }
+
+        Collections.shuffle(fileNameList);//like a mixer
+
+        int correct = fileNameList.indexOf(correctAnswer);
+        fileNameList.add(fileNameList.remove(correct));  //magic //TODO:how it works?
+
+        LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+        for (int row = 0; row < guessRows; row++){
+
+            TableRow currentTableRow = getTableRow(row);
+
+            for (int column = 0; column < 3; column++){
+
+                Button newGuessButton = (Button) inflater.inflate(R.layout.guess_button, null);
+
+                String fileName = fileNameList.get((row * 3) + column); // TODO:some magic again
+                newGuessButton.setText(getCountryName(filename));
+
+                newGuessButton.setOnClickListener(guessButtonListener);
+                currentTableRow.addView(newGuessButton);
+            }
+        }
+
+        int row = random.nextInt(guessRows);
+        int column = random.nextInt(3);
+        TableRow randomTableRow = getTableRow(row);
+        String countryName = getCountryName(correctAnswer);
+        ((Button) randomTableRow.getChildAt(column)).setText(countryName);
+
+    }
+
+    private TableRow getTableRow(int row){
+        return (TableRow) buttonTableLayout.getChildAt(row);
+    }
+
+    private String getCountryName(String name){
+        return name.substring(name.indexOf('-') + 1).replace('_',' '); //pokerface smile
+    }
+
 }
