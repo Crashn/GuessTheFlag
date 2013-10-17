@@ -200,4 +200,72 @@ public class GuessTheCountry extends Activity {
         return name.substring(name.indexOf('-') + 1).replace('_',' '); //pokerface smile
     }
 
+    private void submitGuess(Button guessButton){
+
+        String guess = guessButton.getText().toString();
+        String answer = getCountryName(correctAnswer);
+        ++totalGuesses;
+
+        if (guess.equals(answer)){
+            ++correctAnswers;
+
+            answerTextView.setText(answer + "!");
+            answerTextView.setTextColor(getResources().getColor(R.color.correct_answer));
+
+            disableButtons();
+
+            if(correctAnswers == 10){
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+                builder.setTitle(R.string.reset_quiz);
+
+                builder.setMessage(String.format("%d %s, %.02f%% %s", totalGuesses,
+                        getResources().getString(R.string.guesses), (1000 / (double) totalGuesses),
+                        getResources().getString(R.string.correct)));
+
+                builder.setCancelable(false);
+
+                //add button 'Reset Quiz'
+                builder.setPositiveButton(R.string.reset_quiz, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        resetQuiz();
+                    }
+                });
+
+                AlertDialog resetDialog = builder.create();
+                resetDialog.show();
+            }
+            else{
+                handler.postDelayed(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                loadNextFlag();
+
+                            }
+                        }, 1000); //1sec delay
+            }
+        }
+        else{                                          //if answer incorrect
+            flagImageView.startAnimation(shakeAnimation);
+
+            answerTextView.setText(R.string.incorrect_answer);
+            answerTextView.setTextColor(getResources().getColor(R.color.incorrect_answer));
+            guessButton.setEnabled(false);
+        }
+    }
+
+    private void disableButtons(){
+
+        for (int row = 0; row < buttonTableLayout.getChildCount(); ++row){
+            TableRow tableRow = (TableRow) buttonTableLayout.getChildAt(row);
+
+            for (int i = 0; i < tableRow.getChildCount(); ++i){
+                tableRow.getChildAt(i).setEnabled(false);
+            }
+        }
+    }
+
 }
