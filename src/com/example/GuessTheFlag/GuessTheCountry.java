@@ -35,13 +35,15 @@ import java.util.Set;
 public class GuessTheCountry extends Activity {
 
     private static final String TAG = "FlagQuizGame Activity";
+    private final int CHOICES_MENU_ID = Menu.FIRST;
+    private final int REGIONS_MENU_ID = Menu.FIRST + 1;
 
     private List<String> fileNameList;
     private List<String> quizCountriesList;
     private Map<String ,Boolean> regionsMap;
     private String correctAnswer;
     private int totalGuesses;
-    private int correctAnswers;   //count
+    private int numberOfCorrectAnswers;   //count
     private int guessRows;
     private Random random;
     private Handler handler; //wait before load next flag
@@ -50,6 +52,7 @@ public class GuessTheCountry extends Activity {
     private TextView questionNumberTextView;
     private ImageView flagImageView;
     private TableLayout buttonTableLayout;
+    private int flagCounter;
 
 
     @Override
@@ -61,6 +64,7 @@ public class GuessTheCountry extends Activity {
         quizCountriesList = new ArrayList<String>();
         regionsMap = new HashMap<String, Boolean>();
         guessRows = 1; //default 1 string of answer buttons
+        //flagCounter = 1;
         random = new Random();
         handler = new Handler();
 
@@ -87,6 +91,7 @@ public class GuessTheCountry extends Activity {
     private void resetQuiz(){
 
         AssetManager assets = getAssets();
+        flagCounter = 1;
 
         fileNameList.clear();
 
@@ -108,12 +113,12 @@ public class GuessTheCountry extends Activity {
             Log.e(TAG, "Error loading images file names", e);
         }
 
-        correctAnswers = 0;
+        numberOfCorrectAnswers = 0;
         totalGuesses = 0;
 
         quizCountriesList.clear();
 
-        int flagCounter = 1;
+
         int numberOfFlags = fileNameList.size();
 
         while(flagCounter <=10){
@@ -138,7 +143,7 @@ public class GuessTheCountry extends Activity {
 
         questionNumberTextView.setText(
                 getResources().getString(R.string.question) + " " +
-                        (correctAnswer + 1) + " " +
+                        (numberOfCorrectAnswers + 1) + " " +
                 getResources().getString(R.string.of) + " 10");
 
         //imageName format region-country
@@ -177,7 +182,7 @@ public class GuessTheCountry extends Activity {
                 Button newGuessButton = (Button) inflater.inflate(R.layout.guess_button, null);
 
                 String fileName = fileNameList.get((row * 3) + column); // TODO:some magic again
-                newGuessButton.setText(getCountryName(filename));
+                newGuessButton.setText(getCountryName(fileName));
 
                 newGuessButton.setOnClickListener(guessButtonListener);
                 currentTableRow.addView(newGuessButton);
@@ -207,14 +212,14 @@ public class GuessTheCountry extends Activity {
         ++totalGuesses;
 
         if (guess.equals(answer)){
-            ++correctAnswers;
+            ++numberOfCorrectAnswers;
 
             answerTextView.setText(answer + "!");
             answerTextView.setTextColor(getResources().getColor(R.color.correct_answer));
 
             disableButtons();
 
-            if(correctAnswers == 10){
+            if(numberOfCorrectAnswers == 10){
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
@@ -268,4 +273,90 @@ public class GuessTheCountry extends Activity {
         }
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+
+        menu.add(Menu.NONE, CHOICES_MENU_ID,Menu.NONE, R.string.choices);
+        menu.add(Menu.NONE, REGIONS_MENU_ID, Menu.NONE, R.string.regions);
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()){
+
+            case CHOICES_MENU_ID:
+                final String[] possibleChoices =
+                        getResources().getStringArray(R.array.guessesList);
+
+                AlertDialog.Builder choicesBuilder =
+                        new AlertDialog.Builder(this);
+                choicesBuilder.setTitle(R.string.choices);
+
+                choicesBuilder.setItems(R.array.guessesList,
+                        new DialogInterface.OnClickListener(){
+                            public void onClick(DialogInterface dialog, int item)
+                            {
+                                guessRows = Integer.parseInt(
+                                        possibleChoices[item].toString()
+                                ) / 3;
+                                resetQuiz();
+                            }
+                        });
+                AlertDialog choicesDialog = choicesBuilder.create();
+                choicesDialog.show();
+                return true;
+
+            case REGIONS_MENU_ID:
+
+                final String[] regionNames =
+                        regionsMap.keySet().toArray(new String[regionsMap.size()]);
+
+                boolean[] regionsEnabled = new boolean[regionsMap.size()];
+
+                for(int i = 0; i < regionsEnabled.length; ++i){
+                    regionsEnabled[i] = regionsMap.get(regionNames[i]);
+                }
+
+                AlertDialog.Builder regionsBuilder =
+                        new AlertDialog.Builder(this);
+                regionsBuilder.setTitle(R.string.regions);
+
+                String[] displayNames = new String[regionNames.length];
+
+                for(int i = 0; i < regionNames.length; ++i){
+                    displayNames[i] = regionNames[i].replace('_', ' ');
+                }
+
+                regionsBuilder.setMultiChoiceItems(
+                        displayNames, regionsEnabled,
+                        new DialogInterface.OnMultiChoiceClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+
+                                regionsMap.put(
+                                        regionNames[which].toString(), isChecked);
+
+                            }
+                        }
+                );
+
+                AlertDialog regionsDialog = regionsBuilder.create();
+                regionsDialog.show();
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private OnClickListener guessButtonListener = new OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            submitGuess((Button) v);
+
+        }
+    };
 }
